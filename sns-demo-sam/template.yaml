@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+Description: AWS SAM deployment for Lambda functions to create SNS and process messages
+
+Resources:
+    SnsTopic:
+        Type: "AWS::SNS::Topic"
+        Properties:
+            DisplayName: MySnsTopic
+            TopicName: MySnsTopic
+
+    PublishMessageFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            FunctionName: PublishMessageFunction
+            Runtime: nodejs18.x
+            Handler: index.publishMessage
+            CodeUri: ./publishMessageFunction
+            Events:
+                TriggerPublishMessage:
+                    Type: Api
+                    Properties:
+                        Path: /trigger-publish-message
+                        Method: get
+            Environment:
+                Variables:
+                    TOPIC_ARN: !Ref SnsTopic
+            Policies:
+                - SNSPublishMessagePolicy:
+                      TopicName: !Ref SnsTopic
+                - AmazonSNSFullAccess # Add AmazonSNSFullAccess policy
+
+    ProcessMessageFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            FunctionName: ProcessMessageFunction
+            Runtime: nodejs18.x
+            Handler: index.processMessage
+            CodeUri: ./processMessageFunction
+            Policies:
+                - S3WritePolicy:
+                      BucketName: !Ref DataBucket
+            Environment:
+                Variables:
+                    DataBucket: !Ref DataBucket
+            Events:
+                SnsEvent:
+                    Type: SNS
+                    Properties:
+                        Topic: !Ref SnsTopic
+
+    ReadFileFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            FunctionName: ReadFileFunction
+            Runtime: nodejs18.x
+            Handler: index.readFile
+            CodeUri: ./readFileFunction
+            Policies:
+                - S3ReadPolicy:
+                      BucketName: !Ref DataBucket
+            Environment:
+                Variables:
+                    DataBucket: !Ref DataBucket
+            Events:
+                ReadFileApi:
+                    Type: Api
+                    Properties:
+                        Path: /read-file
+                        Method: GET
+
+    DataBucket:
+        Type: "AWS::S3::Bucket"
+
+Outputs:
+    ReadFileApi:
+        Description: API Gateway endpoint URL for staging to ReadFileApi
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/read-file/"
+    TriggerPublishMessageApi:
+        Description: API Gateway endpoint URL for staging to TriggerPublishMessage
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/trigger-publish-message/"

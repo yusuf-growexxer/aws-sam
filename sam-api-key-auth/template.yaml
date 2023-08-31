@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+
+Resources:
+    MyApi:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: dev
+            Auth:
+                ApiKeyRequired: true
+
+    HelloFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Handler: app.lambdaHandler
+            Runtime: nodejs18.x
+            CodeUri: ./api
+            Policies:
+                - AmazonAPIGatewayAdministrator
+            Events:
+                HelloAPI:
+                    Type: Api
+                    Properties:
+                        RestApiId: !Ref MyApi
+                        Path: /hello
+                        Method: GET
+
+    ApiKey:
+        Type: AWS::ApiGateway::ApiKey
+        DependsOn: [ApiUsagePlan]
+        Properties:
+            Name: !Join ["", [{ "Ref": "AWS::StackName" }, "-apikey-dev-v2"]]
+            Description: "CloudFormation API Key V1"
+            Enabled: true
+            GenerateDistinctId: false
+            StageKeys:
+                - RestApiId: !Ref MyApi
+                  StageName: dev
+
+    ApiUsagePlan:
+        Type: AWS::ApiGateway::UsagePlan
+        DependsOn:
+            - MyApidevStage
+        Properties:
+            ApiStages:
+                - ApiId: !Ref MyApi
+                  Stage: dev
+            Description:
+                !Join [" ", [{ "Ref": "AWS::StackName" }, "usage plan"]]
+            Quota:
+                Limit: 5
+                Period: MONTH
+            UsagePlanName:
+                !Join ["", [{ "Ref": "AWS::StackName" }, "-usage-plan"]]
+
+    ApiUsagePlanKey:
+        Type: "AWS::ApiGateway::UsagePlanKey"
+        DependsOn:
+            - MyApi
+        Properties:
+            KeyId: !Ref ApiKey
+            KeyType: API_KEY
+            UsagePlanId: !Ref ApiUsagePlan
+
+Outputs:
+    MyApi:
+        Description: API Gateway endpoint URL for dev stage for Hello World function
+        Value: !Sub https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/dev/hello/
+
+    ApiId:
+        Description: "API ID"
+        Value: !Ref MyApi

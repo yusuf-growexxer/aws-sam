@@ -1,0 +1,10 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "bluedragon-event-bridge-api-destination"
+resolve_s3 = true
+s3_prefix = "bluedragon-event-bridge-api-destination"
+region = "ap-south-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "DestinationURL=\"https://webhook.site/6c9293d9-eaee-4209-b1ab-7bcddefdbe2f\""
+image_repositories = []

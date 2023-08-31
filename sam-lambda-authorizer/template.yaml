@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-lambda-authorizer
+
+    Sample SAM Template for sam-lambda-authorizer
+
+Globals:
+    Function:
+        Timeout: 5
+        CodeUri: api/
+        Runtime: nodejs18.x
+        Architectures:
+            - x86_64
+
+Resources:
+    # Rest API
+    GetUsersApi:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: dev
+            Auth:
+                # DefaultAuthorizer: TokenAuthorizer # Token Authorizer
+                DefaultAuthorizer: RequestAuthorizer # Request Authorizer
+                Authorizers:
+                    TokenAuthorizer:
+                        FunctionPayloadType: TOKEN
+                        FunctionArn: !GetAtt TokenAuthFunction.Arn
+                        Identity:
+                            Header: Authorization
+                            # ValidationExpression: customExp
+                            ReauthorizeEvery: 100
+                    RequestAuthorizer:
+                        FunctionPayloadType: REQUEST
+                        FunctionArn: !GetAtt RequestAuthFunction.Arn
+                        Identity:
+                            # Must specify at least one of Headers, Ouery Strings, Context,  or Stage Variables
+                            QueryStrings:
+                                - auth
+                            Headers:
+                                - approval
+                            ReauthorizeEvery: 100
+
+    # GetUsersHttpApi:
+    #     Type: AWS::Serverless::HttpApi
+    #     Properties:
+    #         StageName: dev
+    #         Auth:
+    #             DefaultAuthorizer: RequestAuthorizer # Request Authorizer
+    #             Authorizers:
+    #                 RequestAuthorizer:
+    #                     FunctionArn: !GetAtt RequestAuthFunction.Arn
+    #                     Identity:
+    #                         # Must specify at least one of Headers, Ouery Strings, Context,  or Stage Variables
+    #                         QueryStrings:
+    #                             - auth
+    #                         Headers:
+    #                             - approval
+    #                         ReauthorizeEvery: 100
+    #                     AuthorizerPayloadFormatVersion: '2.0'
+    #                     EnableSimpleResponses: true
+
+    GetUsersFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.lambdaHandler
+            Events:
+                GetUsers:
+                    Type: Api
+                    # Type: HttpApi
+                    Properties:
+                        RestApiId: !Ref GetUsersApi
+                        Path: /users
+                        Method: GET
+                        
+    TokenAuthFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: api/auth
+            Handler: authenticate.tokenAuth
+
+    RequestAuthFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: api/auth
+            Handler: authenticate.requestAuth
+
+Outputs:
+    # GetUsersApi:
+    #     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    #     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+    # GetUsersFunction:
+    #     Description: "Hello World Lambda Function ARN"
+    #     Value: !GetAtt GetUsersFunction.Arn
+    # GetUsersFunctionIamRole:
+    #     Description: "Implicit IAM Role created for Hello World function"
+    #     Value: !GetAtt GetUsersFunctionRole.Arn
+
+    Region:
+        Description: "Region"
+        Value: !Ref AWS::Region
+    ApiId:
+        Description: "API ID"
+        Value: !Ref GetUsersApi
+    ApiUrl:
+        Description: "API endpoint URL"
+        Value: !Sub "https://${GetUsersApi}.execute-api.${AWS::Region}.amazonaws.com/dev/"

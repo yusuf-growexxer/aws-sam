@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-crud-dynamodb
+
+    Sample SAM Template for sam-crud-dynamodb
+
+Globals:
+    Function:
+        Timeout: 3
+
+Resources:
+    GetUsersFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: api/
+            Handler: app.index
+            Runtime: nodejs18.x
+            Policies:
+                - AmazonDynamoDBFullAccess # AWS Managed Policies without object
+                # - SQSPollerPolicy: # AWS Managed Policies with object of key value pair
+                    #   QueueName: !GetAtt MyQueue.QueueName
+                - Statement: # AWS Inline Policy
+                      - Sid: SSMDescribeParametersPolicy
+                        Effect: Allow
+                        Action:
+                            - ssm:DescribeParameters
+                        Resource: "*"
+            Architectures:
+                - x86_64
+            Events:
+                GetUsers:
+                    Type: Api
+                    Properties:
+                        Path: /
+                        Method: GET
+    CreateUserFunction:
+        Type: AWS::Serverless::Function
+        Connectors:
+            CreateConnector:
+                Properties:
+                    Destination:
+                        Id: DynamoDBTable
+                    Permissions:
+                        - Write
+        Properties:
+            CodeUri: api/
+            Handler: app.store
+            Runtime: nodejs18.x
+            # Policies: AmazonDynamoDBFullAccess
+            Architectures:
+                - x86_64
+            Events:
+                CreateUser:
+                    Type: Api
+                    Properties:
+                        Path: /create
+                        Method: POST
+
+    UpdateUserFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: api/
+            Handler: app.updateUser
+            Runtime: nodejs18.x
+            Policies: AmazonDynamoDBFullAccess
+            Architectures:
+                - x86_64
+            Events:
+                UpdateUser:
+                    Type: Api
+                    Properties:
+                        Path: /update/{id}
+                        Method: PUT
+
+    DeleteUserFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: api/
+            Handler: app.deleteUser
+            Runtime: nodejs18.x
+            Policies: AmazonDynamoDBFullAccess
+            Architectures:
+                - x86_64
+            Events:
+                DeleteUser:
+                    Type: Api
+                    Properties:
+                        Path: /delete-user/{id}
+                        Method: DELETE
+
+    DynamoDBTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            TableName: users
+            AttributeDefinitions:
+                - AttributeName: id
+                  AttributeType: S
+            KeySchema:
+                - AttributeName: id
+                  KeyType: HASH
+            ProvisionedThroughput:
+                ReadCapacityUnits: 5
+                WriteCapacityUnits: 5
+            StreamSpecification:
+                StreamViewType: NEW_IMAGE
+
+    PostTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            TableName: posts
+            AttributeDefinitions:
+                - AttributeName: id
+                  AttributeType: S
+            KeySchema:
+                - AttributeName: id
+                  KeyType: HASH
+            ProvisionedThroughput:
+                ReadCapacityUnits: 5
+                WriteCapacityUnits: 5
+            StreamSpecification:
+                StreamViewType: NEW_IMAGE
+
+    # GetUsersConnector:
+    #     Type: AWS::Serverless::Connector
+    #     Properties:
+    #         Source:
+    #             Id: GetUsersFunction
+    #         Destination:
+    #             Id: DynamoDBTable
+    #         Permissions:
+    #             - Read
+Outputs:
+    GetUsersApi:
+        Description: "API Gateway endpoint URL for Prod stage for Get Users function"
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    GetUsersFunction:
+        Description: "Get Users Lambda Function ARN"
+        Value: !GetAtt GetUsersFunction.Arn
+    GetUsersFunctionIamRole:
+        Description: "Implicit IAM Role created for Get Users function"
+        Value: !GetAtt GetUsersFunctionRole.Arn
+
+    CreateUserApi:
+        Description: "API Gateway endpoint URL for Prod stage for Create User function"
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create"
+    CreateUserFunction:
+        Description: "Create User Lambda Function ARN"
+        Value: !GetAtt CreateUserFunction.Arn
+    CreateUserFunctionIamRole:
+        Description: "Implicit IAM Role created for Create User function"
+        Value: !GetAtt CreateUserFunctionRole.Arn
+
+    UpdateUserApi:
+        Description: "API Gateway endpoint URL for Prod stage for Update User function"
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update"
+    UpdateUserFunction:
+        Description: "Update User Lambda Function ARN"
+        Value: !GetAtt UpdateUserFunction.Arn
+    UpdateUserFunctionIamRole:
+        Description: "Implicit IAM Role updated for Update User function"
+        Value: !GetAtt UpdateUserFunctionRole.Arn
+
+    DeleteUserApi:
+        Description: "API Gateway endpoint URL for Prod stage for Delete User function"
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/delete-user/{id}"
+    DeleteUserFunction:
+        Description: "Delete User Lambda Function ARN"
+        Value: !GetAtt DeleteUserFunction.Arn
+    DeleteUserFunctionIamRole:
+        Description: "Implicit IAM Role deleted for Delete User function"
+        Value: !GetAtt DeleteUserFunctionRole.Arn

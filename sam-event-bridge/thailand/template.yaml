@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+    ThilandFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: handler.thailand
+            Runtime: nodejs18.x
+            CodeUri: .
+            Events:
+                Trigger:
+                    Type: CloudWatchEvent
+                    Properties:
+                        Pattern:
+                            source:
+                                - custom.orderManager
+                            detail-type:
+                                - order
+                            detail:
+                                restaurantName:
+                                    - thaiLand
+
+    # ThilandInvokePermission:
+    #     Type: "AWS::Lambda::Permission"
+    #     Properties:
+    #         Action: "lambda:InvokeFunction"
+    #         FunctionName: !Ref ThilandFunction
+    #         Principal: events.amazonaws.com
+    #         SourceArn: !GetAtt ThailandEventRule.Arn
+
+    # ThailandEventRule:
+    #     Type: AWS::Events::Rule
+    #     Properties:
+    #         EventPattern:
+    #             detail-type:
+    #                 - order
+    #             detail:
+    #                 restaurantName:
+    #                     - thaiLand
+    #             Source:
+    #                 - custom.orderManager
+    #         Targets:
+    #             - Arn: !GetAtt ThilandFunction.Arn
+    #               Id: "RuleId"

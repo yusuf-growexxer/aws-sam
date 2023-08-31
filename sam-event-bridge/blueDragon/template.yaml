@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+    DestinationURL:
+        Type: String
+
+Resources:
+    BlueDragonConnection:
+        Type: AWS::Events::Connection
+        Properties:
+            AuthParameters:
+                ApiKeyAuthParameters:
+                    ApiKeyName: ApiKeyName
+                    ApiKeyValue: BlueDragonApiKeyValue
+            AuthorizationType: API_KEY
+            Description: "Connection with API Key"
+
+    BlueDragonApiDestination:
+        Type: AWS::Events::ApiDestination
+        Properties:
+            Name: BlueDragonApiDestination
+            ConnectionArn: !GetAtt BlueDragonConnection.Arn
+            InvocationEndpoint: !Ref DestinationURL
+            HttpMethod: POST
+            InvocationRateLimitPerSecond: 10
+
+    BlueDragonEventRule:
+        Type: AWS::Events::Rule
+        Properties:
+            Description: "Blue Dragon order received"
+            EventPattern:
+                source:
+                    - custom.orderManager
+                detail-type:
+                    - order
+                detail:
+                    restaurantName:
+                        - "blueDragon"
+            Targets:
+                - Arn: !GetAtt BlueDragonApiDestination.Arn
+                  RoleArn: !GetAtt EventBridgeTargetRole.Arn
+                  Id: "BlueDragonApiDestination"
+                  DeadLetterConfig:
+                      Arn: !GetAtt BlueDragonDLQueue.Arn
+                  RetryPolicy:
+                      MaximumEventAgeInSeconds: 60
+                      MaximumRetryAttempts: 5
+
+    EventBridgeTargetRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                          Service:
+                              - events.amazonaws.com
+                      Action:
+                          - sts:AssumeRole
+            Policies:
+                - PolicyName: AllowAPIDestinationAccess
+                  PolicyDocument:
+                      Version: "2012-10-17"
+                      Statement:
+                          - Effect: Allow
+                            Action: "events:InvokeApiDestination"
+                            Resource: !GetAtt BlueDragonApiDestination.Arn
+
+    BlueDragonDLQueue:
+        Type: AWS::SQS::Queue
+
+    BlueDragonDLQueuePolicy:
+        Type: AWS::SQS::QueuePolicy
+        Properties:
+            Queues:
+                - !Ref BlueDragonDLQueue
+            PolicyDocument:
+                Statement:
+                    - Effect: Allow
+                      Action: "sqs:SendMessage"
+                      Resource: !GetAtt BlueDragonDLQueue.Arn
+                      Principal:
+                          Service: events.amazonaws.com
+                      Condition:
+                          ArnEquals:
+                              aws:SourceArn: !GetAtt BlueDragonEventRule.Arn
+
+    BlueDragonDLQFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: handler.blueDragonDLQ
+            Runtime: nodejs18.x
+            CodeUri: .
+            Policies: 
+                - DynamoDBCrudPolicy:
+                    TableName: !Ref EventsNotProcessedTable
+            Environment:
+                Variables:
+                    TABLE_NAME: !Ref EventsNotProcessedTable
+            Events:
+                DQLSQSEvent:
+                    Type: SQS
+                    Properties:
+                        Queue: !GetAtt BlueDragonDLQueue.Arn
+                        BatchSize: 1
+
+    EventsNotProcessedTable:
+        Type: AWS::Serverless::SimpleTable
+        Properties:
+            TableName: failed_events
+
+          

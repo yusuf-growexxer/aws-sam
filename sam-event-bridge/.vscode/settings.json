@@ -1,0 +1,43 @@
+{
+    "serverlessConsole.services": [
+        {
+            "type": "cloudformation",
+            "title": "eventbridge",
+            "timeOffsetInMs": 0,
+            "awsProfile": "default",
+            "stacks": [
+                {
+                    "region": "ap-south-1",
+                    "stackName": "order-manager-event-bridge",
+                    "stage": "dev"
+                }
+            ]
+        },
+        {
+            "type": "cloudformation",
+            "title": "pizzaHat",
+            "timeOffsetInMs": 0,
+            "awsProfile": "default",
+            "stacks": [
+                {
+                    "region": "ap-south-1",
+                    "stackName": "pizza-hut-event-bridge",
+                    "stage": "dev"
+                }
+            ]
+        },
+        {
+            "type": "cloudformation",
+            "title": "thiland",
+            "timeOffsetInMs": 0,
+            "awsProfile": "default",
+            "stacks": [
+                {
+                    "region": "ap-south-1",
+                    "stackName": "thailand-event-bridge",
+                    "stage": "dev"
+                }
+            ]
+        }
+    ]
+}

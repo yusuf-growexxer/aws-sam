@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-resource-policy-demo
+
+    Sample SAM Template for sam-resource-policy-demo
+
+Globals:
+    Function:
+        Timeout: 3
+        CodeUri: api/
+        Runtime: nodejs18.x
+        Architectures:
+            - x86_64
+
+Resources:
+    ExplicitApi:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: dev
+            # EndpointConfiguration: PRIVATE
+            Auth:
+                ResourcePolicy:
+                    CustomStatements:
+                        - Effect: "Deny"
+                          Action: "execute-api:Invoke"
+                          Resource: ["execute-api:/*/*/*"]
+                          Principal: "*"
+
+    UploadImageFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.upload
+            Events:
+                UploadImage:
+                    Type: Api
+                    Properties:
+                        Path: /
+                        Method: GET
+                        RestApiId: !Ref ExplicitApi
+
+Outputs:
+    UploadImageApi:
+        Description: "API Gateway endpoint URL for dev stage for Hello World function"
+        Value: !Sub "https://${ExplicitApi}.execute-api.${AWS::Region}.amazonaws.com/dev"

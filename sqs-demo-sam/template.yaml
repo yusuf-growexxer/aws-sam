@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sqs-demo-sam
+
+    Sample SAM Template for sqs-demo-sam
+
+Globals:
+    Function:
+        Timeout: 5
+        Runtime: nodejs18.x
+        Architectures:
+            - x86_64
+
+Resources:
+    MessageQueue:
+        Type: AWS::SQS::Queue
+        Properties:
+            QueueName: MessageDemo
+
+    SendFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: send/
+            Handler: app.handle
+            Events:
+                ApiEvent:
+                    Type: Api
+                    Properties:
+                        Path: /send
+                        Method: GET
+            Environment:
+                Variables:
+                    QUEUE_URL: !Ref MessageQueue
+            Policies:
+                - AmazonSQSFullAccess
+
+    ReceiveFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: receive/
+            Handler: app.handle
+            Events:
+                ApiEvent:
+                    Type: Api
+                    Properties:
+                        Path: /receive
+                        Method: GET
+            Environment:
+                Variables:
+                    QUEUE_URL: !Ref MessageQueue
+            Policies:
+                - AmazonSQSFullAccess
+
+Outputs:
+    SendApi:
+        Description: API Gateway endpoint URL for prod to SQSSendFunction
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/send/"
+    ReceiveApi:
+        Description: API Gateway endpoint URL for prod to SQSReceiveFunction
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/receive/"

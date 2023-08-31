@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-cognito-authorizer
+
+    Sample SAM Template for sam-cognito-authorizer
+
+Globals:
+    Function:
+        Timeout: 5
+        CodeUri: api/
+        Runtime: nodejs18.x
+        Architectures:
+            - x86_64
+
+Resources:
+    RestApi:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: dev
+            Cors:
+                AllowMethods: "'*'"
+                AllowHeaders: "'*'"
+                AllowOrigin: "'*'"
+            Auth:
+                DefaultAuthorizer: MyCognitoUserPoolAuthorizer
+                AddDefaultAuthorizerToCorsPreflight: false
+                Authorizers:
+                    MyCognitoUserPoolAuthorizer:
+                        UserPoolArn: !GetAtt MyCognitoUserPool.Arn
+
+    CognitoUserFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.lambdaHandler
+            Events:
+                CognitoUser:
+                    Type: Api
+                    Properties:
+                        Path: /
+                        Method: GET
+
+    MyCognitoUserPool:
+        Type: AWS::Cognito::UserPool
+        Properties:
+            UserPoolName: cognito_user_demo
+        LambdaConfig:
+            PreSignUp: !GetAtt PreSignUpFunction.Arn
+        Policies:
+            PasswordPolicy:
+                MinimumLength: 6
+        UsernameAttributes:
+            - email
+
+Outputs:
+    HelloWorldApi:
+        Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+        Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+    HelloWorldFunction:
+        Description: "Hello World Lambda Function ARN"
+        Value: !GetAtt HelloWorldFunction.Arn
+    HelloWorldFunctionIamRole:
+        Description: "Implicit IAM Role created for Hello World function"
+        Value: !GetAtt HelloWorldFunctionRole.Arn

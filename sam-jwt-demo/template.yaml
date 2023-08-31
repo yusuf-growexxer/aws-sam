@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-jwt-demo
+
+    Sample SAM Template for sam-jwt-demo
+
+Globals:
+    Function:
+        Timeout: 3
+        Runtime: nodejs18.x
+        CodeUri: ./api
+        Architectures:
+            - x86_64
+
+Resources:
+    MyHttpApi:
+        Type: AWS::Serverless::HttpApi
+        Properties:
+            StageName: dev
+            Auth:
+                DefaultAuthorizer: JWTTokenExample
+                Authorizers:
+                    JWTTokenExample:
+                        JwtConfiguration:
+                            issuer: "https://dev-8mp6hmzvkast7wus.us.auth0.com/"
+                            audience:
+                                - "https://auth0-jwt.authorizer"
+                        IdentitySource: "$request.header.Authorization"
+
+    ValidateTokenFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.validateToken
+            Events:
+                ValidateToken:
+                    Type: HttpApi
+                    Properties:
+                        ApiId: !Ref MyHttpApi
+                        Path: /validate-token
+                        Method: GET
+                        PayloadFormatVersion: "2.0"
+
+    GetTokenFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.getToken
+            Environment:
+                Variables:
+                    URL: "https://dev-8mp6hmzvkast7wus.us.auth0.com/oauth/token"
+                    CLIENT_ID: "klVLvFHSUNbXaurYLWHWDgZngLPjcycx"
+                    CLIENT_SECRET: "eaIt68CIq4mvDt6DOPN39_ksD3LwV7_4rT_N4DZVY_3vGi-_CuY-KdvHqOOHWQ0m"
+                    AUDIENCE: "https://auth0-jwt.authorizer"
+                    GRANT_TYPE: "client_credentials"
+            Events:
+                GetToken:
+                    Type: HttpApi
+                    Properties:
+                        Path: /get-token
+                        Method: GET
